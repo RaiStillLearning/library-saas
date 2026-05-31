@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Menu } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/src/components/ui/avatar";
 import Link from "next/link";
@@ -9,9 +9,14 @@ import Link from "next/link";
 interface TopBarProps {
   onSearchChange?: (val: string) => void;
   searchPlaceholder?: string;
+  onMenuClick?: () => void;
 }
 
-export function TopBar({ onSearchChange, searchPlaceholder = "Search books, authors, categories..." }: TopBarProps) {
+export function TopBar({
+  onSearchChange,
+  searchPlaceholder = "Search books, authors, categories...",
+  onMenuClick,
+}: TopBarProps) {
   const { profile } = useAuth();
 
   // Get name initials
@@ -26,7 +31,17 @@ export function TopBar({ onSearchChange, searchPlaceholder = "Search books, auth
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-100 bg-white px-6 md:px-8 dark:bg-slate-900 dark:border-slate-800 transition-colors">
+    <header className="sticky top-0 z-45 flex h-16 w-full items-center justify-between border-b border-slate-100 bg-white px-6 md:px-8 dark:bg-slate-900 dark:border-slate-800 transition-colors">
+      {/* Menu burger on mobile */}
+      {onMenuClick && (
+        <button
+          onClick={onMenuClick}
+          className="mr-3 p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer lg:hidden shrink-0"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
+
       {/* Search Input Area */}
       <div className="relative flex flex-1 max-w-md">
         <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center pr-3">

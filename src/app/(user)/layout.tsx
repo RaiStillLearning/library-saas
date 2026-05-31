@@ -1,22 +1,30 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 import { UserSidebar } from "@/src/components/layout/user-sidebar";
 import { TopBar } from "@/src/components/layout/top-bar";
 import { BookOpen } from "lucide-react";
 import { ErrorBoundary } from "@/src/components/shared/error-boundary";
+import { cn } from "@/src/lib/utils";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login");
     }
   }, [user, isLoading, router]);
+
+  // Auto-close mobile sidebar drawer when switching pages
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
 
   if (isLoading || !user) {
     return (
@@ -31,12 +39,27 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
-      {/* Sidebar navigation */}
-      <UserSidebar />
+      {/* Overlay Background for mobile sidebar drawer */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar navigation container with responsive translation */}
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 lg:static lg:block transition-transform duration-300 lg:translate-x-0 shrink-0",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        <UserSidebar onClose={() => setIsSidebarOpen(false)} />
+      </div>
 
       {/* Main content pane */}
       <div className="flex flex-col flex-1 h-full overflow-hidden">
-        <TopBar />
+        <TopBar onMenuClick={() => setIsSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-slate-950 transition-colors p-6 md:p-8 relative">
           <ErrorBoundary>
             {children}

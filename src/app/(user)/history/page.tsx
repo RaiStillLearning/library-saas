@@ -201,12 +201,6 @@ export default function BorrowHistoryPage() {
                               >
                                 {isActioning === item.id ? "Returning..." : "Return"}
                               </button>
-                              <Link
-                                href={`/reader/${item.id}`}
-                                className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all shadow-xs"
-                              >
-                                Read
-                              </Link>
                             </>
                           ) : (
                             <Link

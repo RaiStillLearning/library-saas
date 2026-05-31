@@ -3,11 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, LayoutDashboard, Book, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft } from "lucide-react";
+import { BookOpen, LayoutDashboard, Book, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft, X } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 import { cn } from "@/src/lib/utils";
 
-export function AdminSidebar() {
+export function AdminSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
 
@@ -24,15 +24,25 @@ export function AdminSidebar() {
     <aside className="w-64 border-r border-slate-100 bg-white h-screen flex flex-col justify-between p-6 dark:bg-slate-900 dark:border-slate-800 transition-colors">
       <div className="flex flex-col flex-1">
         {/* Branding Logo */}
-        <Link href="/admin" className="flex items-center gap-3 mb-8 group">
-          <div className="p-2 bg-blue-600 rounded-xl group-hover:scale-105 transition-transform">
-            <BookOpen className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base font-bold text-slate-900 dark:text-slate-50 leading-tight">ReadSpace</span>
-            <span className="text-[10px] text-slate-400 font-medium">Admin Panel</span>
-          </div>
-        </Link>
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/admin" className="flex items-center gap-3 group">
+            <div className="p-2 bg-blue-600 rounded-xl group-hover:scale-105 transition-transform">
+              <BookOpen className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base font-bold text-slate-900 dark:text-slate-50 leading-tight">ReadSpace</span>
+              <span className="text-[10px] text-slate-400 font-medium">Admin Panel</span>
+            </div>
+          </Link>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg lg:hidden cursor-pointer"
+            >
+              <X className="h-4.5 w-4.5" />
+            </button>
+          )}
+        </div>
 
         {/* Section Title */}
         <div className="px-3 mb-3">

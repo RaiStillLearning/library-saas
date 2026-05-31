@@ -171,7 +171,7 @@ export default function UserHomePage() {
         {isFeaturedLoading ? (
           <BookGridSkeleton count={8} />
         ) : (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {featuredBooks.map((book: BukuAcakBook) => (
               <BookCard key={book._id} book={mapApiBookToCard(book)} />
             ))}
@@ -197,7 +197,7 @@ export default function UserHomePage() {
         {isTrendingLoading ? (
           <BookGridSkeleton count={8} />
         ) : (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {trendingBooks.map((book: BukuAcakBook) => (
               <BookCard key={book._id} book={mapApiBookToCard(book)} />
             ))}
