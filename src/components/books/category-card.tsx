@@ -39,7 +39,7 @@ export function CategoryCard({ category }: CategoryCardProps) {
 
   return (
     <Link
-      href={`/discover?category=${category.slug}`}
+      href={`/discover?genre=${encodeURIComponent(category.name)}`}
       className="group block focus:outline-none"
     >
       <div className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-slate-100/80 shadow-xs hover:shadow-md hover:border-slate-200/60 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 transition-all duration-300">

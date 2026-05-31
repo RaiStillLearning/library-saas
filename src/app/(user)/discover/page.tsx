@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { SlidersHorizontal, Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getBooks, getGenreStats, BukuAcakBook } from "@/src/services/api/books";
 import { BookCard, mapApiBookToCard } from "@/src/components/books/book-card";
@@ -16,12 +16,12 @@ function DiscoverContent() {
 
   // Read initial values from URL query parameters
   const initialQuery = searchParams.get("q") || "";
-  const initialCategory = searchParams.get("category") || "all";
+  const initialGenre = searchParams.get("genre") || "";
   const initialPage = parseInt(searchParams.get("page") || "1", 10);
 
   // State managers
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [selectedGenre, setSelectedGenre] = useState(initialGenre);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
 
@@ -36,7 +36,7 @@ function DiscoverContent() {
   // Synchronize state with query parameters if they change externally
   useEffect(() => {
     setSearchQuery(searchParams.get("q") || "");
-    setSelectedCategory(searchParams.get("category") || "all");
+    setSelectedGenre(searchParams.get("genre") || "");
     setCurrentPage(parseInt(searchParams.get("page") || "1", 10));
   }, [searchParams]);
 
@@ -52,30 +52,15 @@ function DiscoverContent() {
     ? genreStatsRaw
     : (genreStatsRaw as any)?.genre_statistics || [];
 
-  const categoryFilters = [
-    { name: "All", slug: "all", genre: "" },
-    ...genreStats
-      .filter((g: any) => g.genre && g.genre.trim() !== "")
-      .slice(0, 15)
-      .map((g: any) => ({
-        name: g.genre,
-        slug: g.genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, ""),
-        genre: g.genre,
-      })),
-  ];
+  const genreList = genreStats
+    .filter((g: any) => g.genre && g.genre.trim() !== "")
+    .slice(0, 20);
 
-  // Find the actual genre name for the API call
-  const selectedGenre =
-    selectedCategory === "all"
-      ? ""
-      : categoryFilters.find((c) => c.slug === selectedCategory)?.genre || "";
-
-  // Fetch books from API
+  // Fetch books from API - uses exact genre name directly
   const {
     data: booksData,
     isLoading,
     isFetching,
-    error,
   } = useQuery({
     queryKey: ["discover-books", debouncedQuery, selectedGenre, currentPage],
     queryFn: () =>
@@ -94,10 +79,10 @@ function DiscoverContent() {
 
   // Helper: update url params
   const updateUrlParams = useCallback(
-    (query: string, category: string, page: number) => {
+    (query: string, genre: string, page: number) => {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
-      if (category && category !== "all") params.set("category", category);
+      if (genre) params.set("genre", genre);
       if (page > 1) params.set("page", String(page));
 
       const paramsString = params.toString();
@@ -109,18 +94,19 @@ function DiscoverContent() {
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
     setCurrentPage(1);
-    updateUrlParams(val, selectedCategory, 1);
+    updateUrlParams(val, selectedGenre, 1);
   };
 
-  const handleCategorySelect = (slug: string) => {
-    setSelectedCategory(slug);
+  const handleGenreSelect = (genre: string) => {
+    const newGenre = genre === selectedGenre ? "" : genre; // Toggle off if already selected
+    setSelectedGenre(newGenre);
     setCurrentPage(1);
-    updateUrlParams(searchQuery, slug, 1);
+    updateUrlParams(searchQuery, newGenre, 1);
   };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    updateUrlParams(searchQuery, selectedCategory, page);
+    updateUrlParams(searchQuery, selectedGenre, page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -128,9 +114,13 @@ function DiscoverContent() {
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col space-y-1.5">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Discover Books</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+          {selectedGenre ? selectedGenre : "Discover Books"}
+        </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-          Browse our complete collection of {totalBooks > 0 ? `${totalBooks.toLocaleString()} ` : ""}digital books
+          {selectedGenre
+            ? `Showing ${totalBooks.toLocaleString()} books in ${selectedGenre}`
+            : `Browse our complete collection of ${totalBooks > 0 ? `${totalBooks.toLocaleString()} ` : ""}digital books`}
         </p>
       </div>
 
@@ -157,7 +147,7 @@ function DiscoverContent() {
         )}
       </div>
 
-      {/* Category Pills selection list */}
+      {/* Category / Genre Pills */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -165,12 +155,25 @@ function DiscoverContent() {
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
-          {categoryFilters.map((cat) => {
-            const isActive = selectedCategory === cat.slug;
+          {/* All button */}
+          <button
+            onClick={() => handleGenreSelect("")}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer",
+              !selectedGenre
+                ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                : "bg-white border-slate-200/80 text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+            )}
+          >
+            All
+          </button>
+
+          {genreList.map((g: any) => {
+            const isActive = selectedGenre === g.genre;
             return (
               <button
-                key={cat.slug}
-                onClick={() => handleCategorySelect(cat.slug)}
+                key={g.genre}
+                onClick={() => handleGenreSelect(g.genre)}
                 className={cn(
                   "px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer",
                   isActive
@@ -178,7 +181,8 @@ function DiscoverContent() {
                     : "bg-white border-slate-200/80 text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                 )}
               >
-                {cat.name}
+                {g.genre}
+                <span className="ml-1 opacity-60">({g.count})</span>
               </button>
             );
           })}
@@ -190,7 +194,7 @@ function DiscoverContent() {
         <span className="text-xs md:text-sm font-semibold text-slate-400">
           {isLoading
             ? "Loading books..."
-            : `Showing ${books.length} of ${totalBooks} results`}
+            : `Showing ${books.length} of ${totalBooks.toLocaleString()} results`}
         </span>
         {pagination && totalPages > 1 && (
           <span className="text-xs font-semibold text-slate-400">
@@ -216,9 +220,9 @@ function DiscoverContent() {
           actionText="Clear All Filters"
           onAction={() => {
             setSearchQuery("");
-            setSelectedCategory("all");
+            setSelectedGenre("");
             setCurrentPage(1);
-            updateUrlParams("", "all", 1);
+            updateUrlParams("", "", 1);
           }}
         />
       )}
