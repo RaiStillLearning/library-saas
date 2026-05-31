@@ -1,0 +1,32 @@
+Before writing code:
+
+Read:
+
+docs/PRD.md
+docs/SRS.md
+docs/SDD.md
+docs/DATABASE-DESIGN.md
+docs/PROJECT-ARCHITECTURE.md
+docs/DESIGN-SYSTEM.md
+docs/DESIGN-REFERENCE.md
+docs/AI-AGENTS-CONSTRAINT.md
+
+Inspect all images inside:
+
+docs/design/
+
+Use screenshots as the primary UI source of truth.
+
+Implement screens exactly as shown.
+
+Do not redesign.
+
+Use:
+- Next.js App Router
+- TypeScript
+- TailwindCSS
+- Shadcn UI
+- Supabase
+- TanStack Query
+
+Create reusable components whenever possible.

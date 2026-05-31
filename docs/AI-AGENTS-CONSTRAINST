@@ -1,0 +1,25 @@
+# AI Agent Constraints
+
+The AI agent must:
+
+- Follow Feature-Based Architecture.
+- Use App Router.
+- Use TypeScript everywhere.
+- Use Server Components by default.
+- Use Client Components only when necessary.
+- Use TanStack Query for remote data.
+- Use React Hook Form + Zod for all forms.
+- Use Shadcn UI for all interface components.
+- Use GSAP for animations.
+- Reuse existing components before creating new ones.
+- Create loading, empty, and error states for all data-driven pages.
+- Avoid introducing additional dependencies unless approved.
+
+Priority Order:
+
+1. Functionality
+2. Type Safety
+3. Reusability
+4. Performance
+5. Visual Polish
+```
