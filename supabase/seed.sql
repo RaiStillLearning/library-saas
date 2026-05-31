@@ -87,6 +87,10 @@ CREATE POLICY "Allow users to select their own borrowings"
     ON public.borrowings FOR SELECT 
     USING (auth.uid() = user_id);
 
+CREATE POLICY "Allow admin to select all borrowings" 
+    ON public.borrowings FOR SELECT 
+    USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
 CREATE POLICY "Allow users to insert their own borrowings" 
     ON public.borrowings FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
@@ -94,3 +98,7 @@ CREATE POLICY "Allow users to insert their own borrowings"
 CREATE POLICY "Allow users to update their own borrowings" 
     ON public.borrowings FOR UPDATE 
     USING (auth.uid() = user_id);
+
+CREATE POLICY "Allow admin to update all borrowings" 
+    ON public.borrowings FOR UPDATE 
+    USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));

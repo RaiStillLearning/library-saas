@@ -112,6 +112,7 @@ export async function fetchBorrowings(userId: string): Promise<any[]> {
         if (!book) return null;
         return {
           id: record.book_id,
+          borrowingId: record.id,
           title: book.title,
           author: book.author?.name || "Unknown Author",
           coverUrl: book.cover_image,
@@ -135,6 +136,142 @@ export async function fetchBorrowings(userId: string): Promise<any[]> {
   }
 }
 
+export async function fetchBorrowHistory(userId: string): Promise<any[]> {
+  if (!isSupabaseConfigured) {
+    const history = localStorage.getItem("readspace_borrow_history");
+    if (!history) {
+      // Fallback: copy active borrowings as starting history
+      const active = localStorage.getItem("readspace_borrowed_books");
+      if (active) {
+        localStorage.setItem("readspace_borrow_history", active);
+        return JSON.parse(active);
+      }
+      return [];
+    }
+    return JSON.parse(history);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("borrowings")
+      .select("*")
+      .eq("user_id", userId)
+      .order("borrow_date", { ascending: false });
+
+    if (error) throw error;
+    if (!data || data.length === 0) return [];
+
+    // Map each borrowing record by fetching metadata from BukuAcak API
+    const borrowingPromises = data.map(async (record) => {
+      try {
+        const book = await getBookById(record.book_id);
+        if (!book) return null;
+        return {
+          id: record.book_id,
+          borrowingId: record.id,
+          title: book.title,
+          author: book.author?.name || "Unknown Author",
+          coverUrl: book.cover_image,
+          category: book.category?.name || "General",
+          borrowDate: record.borrow_date,
+          dueDate: record.due_date,
+          returnDate: record.return_date,
+          status: record.status,
+        };
+      } catch (err) {
+        console.error(`Error loading book metadata for ID ${record.book_id}:`, err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(borrowingPromises);
+    return results.filter((b) => b !== null);
+  } catch (error) {
+    console.error("Error fetching borrow history from Supabase:", error);
+    const history = localStorage.getItem("readspace_borrow_history");
+    return history ? JSON.parse(history) : [];
+  }
+}
+
+export async function fetchAllBorrowingsAdmin(): Promise<any[]> {
+  if (!isSupabaseConfigured) {
+    const history = localStorage.getItem("readspace_borrow_history");
+    const list = history ? JSON.parse(history) : [];
+    return list.map((record: any) => ({
+      id: record.borrowingId || record.id || Math.random().toString(36).substr(2, 9),
+      bookId: record.id,
+      title: record.title,
+      studentName: record.studentName || "John Doe",
+      studentEmail: record.studentEmail || "student@readspace.com",
+      borrowDate: record.borrowDate,
+      dueDate: record.dueDate,
+      returnDate: record.returnDate,
+      status: record.status,
+    }));
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("borrowings")
+      .select(`
+        id,
+        user_id,
+        book_id,
+        borrow_date,
+        due_date,
+        return_date,
+        status,
+        profiles (
+          name,
+          email
+        )
+      `)
+      .order("borrow_date", { ascending: false });
+
+    if (error) throw error;
+    if (!data) return [];
+
+    const borrowingPromises = data.map(async (record: any) => {
+      try {
+        const book = await getBookById(record.book_id);
+        if (!book) return null;
+        return {
+          id: record.id,
+          bookId: record.book_id,
+          title: book.title,
+          studentName: record.profiles?.name || "Unknown Student",
+          studentEmail: record.profiles?.email || "Unknown Email",
+          borrowDate: record.borrow_date,
+          dueDate: record.due_date,
+          returnDate: record.return_date,
+          status: record.status,
+        };
+      } catch (err) {
+        console.error(`Error loading book metadata for ID ${record.book_id}:`, err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(borrowingPromises);
+    return results.filter((b) => b !== null);
+  } catch (error) {
+    console.error("Error fetching admin borrowings from Supabase:", error);
+    const history = localStorage.getItem("readspace_borrow_history");
+    const list = history ? JSON.parse(history) : [];
+    return list.map((record: any) => ({
+      id: record.borrowingId || record.id || Math.random().toString(36).substr(2, 9),
+      bookId: record.id,
+      title: record.title,
+      studentName: record.studentName || "John Doe",
+      studentEmail: record.studentEmail || "student@readspace.com",
+      borrowDate: record.borrowDate,
+      dueDate: record.dueDate,
+      returnDate: record.returnDate,
+      status: record.status,
+    }));
+  }
+}
+
 export async function borrowBook(
   userId: string,
   bookId: string,
@@ -144,13 +281,27 @@ export async function borrowBook(
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 14); // 14 days policy
 
+  let studentName = "John Doe";
+  let studentEmail = "student@readspace.com";
+  try {
+    const profileStr = localStorage.getItem("readspace_mock_profile");
+    if (profileStr) {
+      const p = JSON.parse(profileStr);
+      studentName = p.name || studentName;
+      studentEmail = p.email || studentEmail;
+    }
+  } catch (e) {}
+
+  const borrowingId = Math.random().toString(36).substring(2, 15);
+
   // Sync to localStorage
   try {
     const borrowed = localStorage.getItem("readspace_borrowed_books");
     const list = borrowed ? JSON.parse(borrowed) : [];
     if (!list.some((b: any) => b.id === bookId)) {
-      list.push({
+      const record = {
         id: bookId,
+        borrowingId,
         title: bookDetails.title,
         author: bookDetails.author,
         coverUrl: bookDetails.coverUrl,
@@ -158,8 +309,22 @@ export async function borrowBook(
         borrowDate: borrowDate.toISOString(),
         dueDate: dueDate.toISOString(),
         status: "Borrowed",
-      });
+        studentName,
+        studentEmail,
+      };
+      list.push(record);
       localStorage.setItem("readspace_borrowed_books", JSON.stringify(list));
+
+      // Sync to history as well
+      const history = localStorage.getItem("readspace_borrow_history");
+      const historyList = history ? JSON.parse(history) : [];
+      const existingIdx = historyList.findIndex((h: any) => h.id === bookId && h.status === "Borrowed");
+      if (existingIdx >= 0) {
+        historyList[existingIdx] = record;
+      } else {
+        historyList.push(record);
+      }
+      localStorage.setItem("readspace_borrow_history", JSON.stringify(historyList));
     }
   } catch (e) {
     console.error("Error syncing borrowing to localStorage:", e);
@@ -192,6 +357,17 @@ export async function returnBook(userId: string, bookId: string): Promise<boolea
       const list = JSON.parse(borrowed).filter((b: any) => b.id !== bookId);
       localStorage.setItem("readspace_borrowed_books", JSON.stringify(list));
     }
+
+    const history = localStorage.getItem("readspace_borrow_history");
+    if (history) {
+      const historyList = JSON.parse(history);
+      const record = historyList.find((b: any) => b.id === bookId && b.status === "Borrowed");
+      if (record) {
+        record.status = "Returned";
+        record.returnDate = new Date().toISOString();
+        localStorage.setItem("readspace_borrow_history", JSON.stringify(historyList));
+      }
+    }
   } catch (e) {
     console.error("Error syncing return to localStorage:", e);
   }
@@ -213,6 +389,50 @@ export async function returnBook(userId: string, bookId: string): Promise<boolea
     return true;
   } catch (error) {
     console.error("Error returning book in Supabase:", error);
+    return false;
+  }
+}
+
+export async function adminReturnBook(borrowingId: string, bookId: string): Promise<boolean> {
+  // Sync to localStorage
+  try {
+    // 1. Remove from active borrowings
+    const borrowed = localStorage.getItem("readspace_borrowed_books");
+    if (borrowed) {
+      const list = JSON.parse(borrowed).filter((b: any) => b.id !== bookId);
+      localStorage.setItem("readspace_borrowed_books", JSON.stringify(list));
+    }
+
+    // 2. Update status in history
+    const history = localStorage.getItem("readspace_borrow_history");
+    if (history) {
+      const historyList = JSON.parse(history);
+      const record = historyList.find((b: any) => (b.id === bookId || b.borrowingId === borrowingId) && b.status === "Borrowed");
+      if (record) {
+        record.status = "Returned";
+        record.returnDate = new Date().toISOString();
+        localStorage.setItem("readspace_borrow_history", JSON.stringify(historyList));
+      }
+    }
+  } catch (e) {
+    console.error("Error syncing admin return to localStorage:", e);
+  }
+
+  if (!isSupabaseConfigured) return true;
+
+  try {
+    const { error } = await supabase
+      .from("borrowings")
+      .update({
+        status: "Returned",
+        return_date: new Date().toISOString(),
+      })
+      .eq("id", borrowingId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error admin returning book in Supabase:", error);
     return false;
   }
 }
