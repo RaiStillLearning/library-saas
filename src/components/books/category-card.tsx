@@ -14,24 +14,27 @@ export function CategoryCard({ category }: CategoryCardProps) {
   // Dynamically resolve Lucide Icon
   const IconComponent = (Icons as any)[category.iconName] || Icons.BookOpen;
 
-  // Split class name for text/bg colors based on category slug
+  // Color palette for category icons - cycles through for any genre
+  const colorPalette = [
+    "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
+    "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400",
+    "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
+    "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+    "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+    "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400",
+    "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400",
+    "bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-950/40 dark:text-fuchsia-400",
+    "bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400",
+    "bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-400",
+  ];
+
   const getIconColorClasses = (slug: string) => {
-    switch (slug) {
-      case "science-fiction":
-        return "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400";
-      case "romance":
-        return "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400";
-      case "business":
-        return "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400";
-      case "education":
-        return "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400";
-      case "fiction":
-        return "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400";
-      case "technology":
-        return "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400";
-      default:
-        return "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+    // Simple hash to consistently pick a color for any slug
+    let hash = 0;
+    for (let i = 0; i < slug.length; i++) {
+      hash = slug.charCodeAt(i) + ((hash << 5) - hash);
     }
+    return colorPalette[Math.abs(hash) % colorPalette.length];
   };
 
   return (

@@ -2,20 +2,104 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Clock, TrendingUp, BookOpen, Search, ArrowRight } from "lucide-react";
-import { MOCK_BOOKS, MOCK_CATEGORIES } from "@/src/lib/constants";
-import { BookCard } from "@/src/components/books/book-card";
+import { useQuery } from "@tanstack/react-query";
+import { Sparkles, TrendingUp, BookOpen, Search, ArrowRight, Loader2 } from "lucide-react";
+import { getBooks, getGenreStats, BukuAcakBook } from "@/src/services/api/books";
+import { BookCard, mapApiBookToCard } from "@/src/components/books/book-card";
 import { CategoryCard } from "@/src/components/books/category-card";
+import { BookGridSkeleton } from "@/src/components/shared/skeletons";
 import Link from "next/link";
+
+// Map genre stats from API into category card format
+const GENRE_ICON_MAP: Record<string, string> = {
+  "Picture Books": "Image",
+  "Self-Improvement": "Brain",
+  "Activity Books": "Puzzle",
+  "Culinary": "CookingPot",
+  "Literary": "BookText",
+  "Romance": "Heart",
+  "Harlequin": "HeartHandshake",
+  "Mysteries & Thrillers": "Search",
+  "Science Fiction & Fantasy": "Rocket",
+  "Social Sciences": "Users",
+  "Business Management & Leadership": "Briefcase",
+  "Poetry": "Feather",
+  "MetroPop": "Building2",
+  "TeenLit": "Sparkle",
+  "Young Adult": "GraduationCap",
+  "Historical Romance": "Castle",
+  "Religion & Spirituality": "Church",
+  "Short Stories": "FileText",
+  "Diet & Health": "Apple",
+  "English Classics": "BookOpen",
+  "Biography": "UserCircle",
+  "Science & Nature": "Atom",
+  "Parenting & Family": "Baby",
+  "Historical Fiction": "Landmark",
+  "Drama": "Drama",
+  "Novel": "Book",
+};
+
+const GENRE_COLOR_MAP: Record<string, string> = {
+  "Picture Books": "bg-pink-500 text-white dark:bg-pink-600",
+  "Self-Improvement": "bg-emerald-500 text-white dark:bg-emerald-600",
+  "Activity Books": "bg-yellow-500 text-white dark:bg-yellow-600",
+  "Culinary": "bg-orange-500 text-white dark:bg-orange-600",
+  "Literary": "bg-violet-500 text-white dark:bg-violet-600",
+  "Romance": "bg-rose-500 text-white dark:bg-rose-600",
+  "Mysteries & Thrillers": "bg-slate-700 text-white dark:bg-slate-600",
+  "Science Fiction & Fantasy": "bg-blue-500 text-white dark:bg-blue-600",
+  "Social Sciences": "bg-cyan-500 text-white dark:bg-cyan-600",
+  "Business Management & Leadership": "bg-amber-500 text-white dark:bg-amber-600",
+  "Poetry": "bg-indigo-500 text-white dark:bg-indigo-600",
+  "MetroPop": "bg-fuchsia-500 text-white dark:bg-fuchsia-600",
+};
 
 export default function UserHomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
-  // Filter books by status/types for sections
-  const continueReadingBooks = MOCK_BOOKS.filter((b) => b.status === "Reading");
-  const featuredBooks = MOCK_BOOKS.filter((b) => b.id === "book-3" || b.id === "book-4" || b.id === "book-5" || b.id === "book-6");
-  const trendingBooks = MOCK_BOOKS.filter((b) => b.id === "book-7" || b.id === "book-8" || b.id === "book-9" || b.id === "book-10");
+  // Featured books - page 1
+  const { data: featuredData, isLoading: isFeaturedLoading } = useQuery({
+    queryKey: ["featured-books"],
+    queryFn: () => getBooks({ page: 1 }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Trending books - page 2
+  const { data: trendingData, isLoading: isTrendingLoading } = useQuery({
+    queryKey: ["trending-books"],
+    queryFn: () => getBooks({ page: 2 }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Genre stats for categories
+  const { data: genreStatsRaw, isLoading: isGenreLoading } = useQuery({
+    queryKey: ["genre-stats"],
+    queryFn: () => getGenreStats(),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const featuredBooks = (featuredData?.books || []).slice(0, 8);
+  const trendingBooks = (trendingData?.books || []).slice(0, 8);
+
+  // Transform genre stats into Category[] format
+  const genreStats: any[] = Array.isArray(genreStatsRaw)
+    ? genreStatsRaw
+    : (genreStatsRaw as any)?.genre_statistics || [];
+
+  const categories = genreStats
+    .filter((g: any) => g.genre && g.genre.trim() !== "")
+    .slice(0, 6)
+    .map((g: any, idx: number) => ({
+      id: `cat-${idx}`,
+      name: g.genre,
+      slug: g.genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, ""),
+      bookCount: g.count,
+      colorClass:
+        GENRE_COLOR_MAP[g.genre] || "bg-indigo-500 text-white dark:bg-indigo-600",
+      iconName: GENRE_ICON_MAP[g.genre] || "BookOpen",
+    }));
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,31 +153,7 @@ export default function UserHomePage() {
         </form>
       </section>
 
-      {/* 2. Continue Reading Section */}
-      {continueReadingBooks.length > 0 && (
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-blue-50 dark:bg-blue-950/40 rounded-xl text-blue-600 dark:text-blue-400">
-                <Clock className="h-5 w-5" />
-              </div>
-              <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-slate-50">Continue Reading</h2>
-            </div>
-            <Link href="/library" className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <span>View All</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {continueReadingBooks.map((book) => (
-              <BookCard key={book.id} book={book} showProgress />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 3. Featured Books Section */}
+      {/* 2. Featured Books Section */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -108,14 +168,18 @@ export default function UserHomePage() {
           </Link>
         </div>
 
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {featuredBooks.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
-        </div>
+        {isFeaturedLoading ? (
+          <BookGridSkeleton count={8} />
+        ) : (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {featuredBooks.map((book: BukuAcakBook) => (
+              <BookCard key={book._id} book={mapApiBookToCard(book)} />
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* 4. Trending Now Section */}
+      {/* 3. Trending Now Section */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -130,14 +194,18 @@ export default function UserHomePage() {
           </Link>
         </div>
 
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {trendingBooks.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
-        </div>
+        {isTrendingLoading ? (
+          <BookGridSkeleton count={8} />
+        ) : (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {trendingBooks.map((book: BukuAcakBook) => (
+              <BookCard key={book._id} book={mapApiBookToCard(book)} />
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* 5. Popular Categories Section */}
+      {/* 4. Popular Categories Section */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -146,17 +214,25 @@ export default function UserHomePage() {
             </div>
             <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-slate-50">Popular Categories</h2>
           </div>
-          <Link href="/categories" className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+          <Link href="/discover" className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
             <span>View All</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MOCK_CATEGORIES.map((cat) => (
-            <CategoryCard key={cat.id} category={cat} />
-          ))}
-        </div>
+        {isGenreLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((cat: any) => (
+              <CategoryCard key={cat.id} category={cat} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -18,9 +18,8 @@ import {
   Globe,
   Loader2,
 } from "lucide-react";
-import { MOCK_BOOKS, Book } from "@/src/lib/constants";
 import { getBookById, getBooks, BukuAcakBook } from "@/src/services/api/books";
-import { BookCard } from "@/src/components/books/book-card";
+import { BookCard, mapApiBookToCard } from "@/src/components/books/book-card";
 import { toast } from "sonner";
 import { cn } from "@/src/lib/utils";
 import { useAuth } from "@/src/providers/supabase-provider";
@@ -38,21 +37,7 @@ interface BookDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Map BukuAcakBook to the internal Book interface for BookCard reuse
-function mapBukuAcakToBook(baBook: BukuAcakBook): Book {
-  return {
-    id: baBook._id,
-    title: baBook.title,
-    author: baBook.author?.name || "Unknown Author",
-    description: baBook.summary || "",
-    coverUrl: baBook.cover_image || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=600&h=900&fit=crop",
-    category: baBook.category?.name || "General",
-    stock: 5,
-    availableStock: 5,
-    rating: 4.5,
-    status: "Available",
-  };
-}
+
 
 export default function BookDetailPage({ params }: BookDetailPageProps) {
   const router = useRouter();
@@ -73,34 +58,7 @@ export default function BookDetailPage({ params }: BookDetailPageProps) {
     retry: 1, // Only retry once before falling back
   });
 
-  // Fallback to MOCK_BOOKS if the ID is a mock ID or the API fails
-  const mockBook = MOCK_BOOKS.find((b) => b.id === id);
-  const book: BukuAcakBook | null = apiBook
-    ? apiBook
-    : mockBook
-    ? {
-        _id: mockBook.id,
-        title: mockBook.title,
-        cover_image: mockBook.coverUrl,
-        author: { name: mockBook.author },
-        category: { name: mockBook.category },
-        summary: mockBook.description,
-        publisher: "ReadSpace Press",
-        details: {
-          isbn: "978-0123456789",
-          total_pages: "320 pages",
-          price: "Rp 99,000",
-          published_date: "12 May 2024",
-          format: "Soft Cover",
-        },
-        buy_links: [
-          {
-            store: "Search on Gramedia.com",
-            url: `https://www.gramedia.com/search?q=${encodeURIComponent(mockBook.title)}`,
-          },
-        ],
-      }
-    : null;
+  const book: BukuAcakBook | null = apiBook || null;
 
   // Fetch related books based on current book's category
   const { data: relatedData, isLoading: isRelatedLoading } = useQuery({
@@ -496,7 +454,7 @@ export default function BookDetailPage({ params }: BookDetailPageProps) {
         ) : relatedBooksList.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
             {relatedBooksList.map((relatedBook: BukuAcakBook) => (
-              <BookCard key={relatedBook._id} book={mapBukuAcakToBook(relatedBook)} />
+              <BookCard key={relatedBook._id} book={mapApiBookToCard(relatedBook)} />
             ))}
           </div>
         ) : (
