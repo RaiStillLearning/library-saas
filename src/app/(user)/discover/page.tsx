@@ -24,6 +24,7 @@ function DiscoverContent() {
   const [selectedGenre, setSelectedGenre] = useState(initialGenre);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+  const [accumulatedBooks, setAccumulatedBooks] = useState<BukuAcakBook[]>([]);
 
   // Debounce search query
   useEffect(() => {
@@ -32,6 +33,17 @@ function DiscoverContent() {
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Reset page and accumulated books when search query or genre changes
+  const [prevQuery, setPrevQuery] = useState(initialQuery);
+  const [prevGenre, setPrevGenre] = useState(initialGenre);
+
+  if (debouncedQuery !== prevQuery || selectedGenre !== prevGenre) {
+    setPrevQuery(debouncedQuery);
+    setPrevGenre(selectedGenre);
+    setCurrentPage(1);
+    setAccumulatedBooks([]);
+  }
 
   // Synchronize state with query parameters if they change externally
   useEffect(() => {
@@ -72,10 +84,24 @@ function DiscoverContent() {
     staleTime: 3 * 60 * 1000,
   });
 
-  const books = booksData?.books || [];
   const pagination = booksData?.pagination;
   const totalPages = pagination?.total_pages || 1;
   const totalBooks = pagination?.total_books || 0;
+
+  // Sync loaded books to accumulatedBooks
+  useEffect(() => {
+    if (booksData?.books) {
+      if (currentPage === 1) {
+        setAccumulatedBooks(booksData.books);
+      } else {
+        setAccumulatedBooks((prev) => {
+          const existingIds = new Set(prev.map((b) => b._id));
+          const newBooks = booksData.books.filter((b) => !existingIds.has(b._id));
+          return [...prev, ...newBooks];
+        });
+      }
+    }
+  }, [booksData, currentPage]);
 
   // Helper: update url params
   const updateUrlParams = useCallback(
@@ -94,6 +120,7 @@ function DiscoverContent() {
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
     setCurrentPage(1);
+    setAccumulatedBooks([]);
     updateUrlParams(val, selectedGenre, 1);
   };
 
@@ -101,20 +128,15 @@ function DiscoverContent() {
     const newGenre = genre === selectedGenre ? "" : genre; // Toggle off if already selected
     setSelectedGenre(newGenre);
     setCurrentPage(1);
+    setAccumulatedBooks([]);
     updateUrlParams(searchQuery, newGenre, 1);
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    updateUrlParams(searchQuery, selectedGenre, page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col space-y-1.5">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50 font-display">
           {selectedGenre ? selectedGenre : "Discover Books"}
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
@@ -140,9 +162,9 @@ function DiscoverContent() {
 
         {/* Loading indicator */}
         {isFetching && (
-          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 font-semibold">
-            <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <span>Loading...</span>
+          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 font-semibold animate-pulse">
+            <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin dark:border-blue-400" />
+            <span>Syncing database...</span>
           </div>
         )}
       </div>
@@ -192,23 +214,18 @@ function DiscoverContent() {
       {/* Results details */}
       <div className="flex items-center justify-between pt-4">
         <span className="text-xs md:text-sm font-semibold text-slate-400">
-          {isLoading
+          {isLoading && accumulatedBooks.length === 0
             ? "Loading books..."
-            : `Showing ${books.length} of ${totalBooks.toLocaleString()} results`}
+            : `Showing ${accumulatedBooks.length} of ${totalBooks.toLocaleString()} results`}
         </span>
-        {pagination && totalPages > 1 && (
-          <span className="text-xs font-semibold text-slate-400">
-            Page {currentPage} of {totalPages}
-          </span>
-        )}
       </div>
 
       {/* Book Grid */}
-      {isLoading ? (
+      {isLoading && accumulatedBooks.length === 0 ? (
         <BookGridSkeleton count={10} />
-      ) : books.length > 0 ? (
+      ) : accumulatedBooks.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {books.map((book: BukuAcakBook) => (
+          {accumulatedBooks.map((book: BukuAcakBook) => (
             <BookCard key={book._id} book={mapApiBookToCard(book)} />
           ))}
         </div>
@@ -222,62 +239,34 @@ function DiscoverContent() {
             setSearchQuery("");
             setSelectedGenre("");
             setCurrentPage(1);
+            setAccumulatedBooks([]);
             updateUrlParams("", "", 1);
           }}
         />
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 pt-8">
+      {/* Load More Button */}
+      {currentPage < totalPages && accumulatedBooks.length > 0 && (
+        <div className="flex justify-center pt-10">
           <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
+            onClick={() => {
+              const nextPage = currentPage + 1;
+              setCurrentPage(nextPage);
+              updateUrlParams(searchQuery, selectedGenre, nextPage);
+            }}
+            disabled={isFetching}
             className={cn(
-              "px-4 py-2 border rounded-xl text-xs font-bold transition-colors cursor-pointer",
-              currentPage <= 1
-                ? "border-slate-100 text-slate-300 cursor-not-allowed dark:border-slate-800 dark:text-slate-600"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
+              "px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all active:scale-95 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed flex items-center gap-2 dark:bg-blue-500 dark:hover:bg-blue-600"
             )}
           >
-            Previous
-          </button>
-
-          {/* Page number buttons */}
-          {(() => {
-            const pageNumbers: number[] = [];
-            const startPage = Math.max(1, currentPage - 2);
-            const endPage = Math.min(totalPages, currentPage + 2);
-            for (let i = startPage; i <= endPage; i++) {
-              pageNumbers.push(i);
-            }
-            return pageNumbers.map((page) => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={cn(
-                  "w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer",
-                  page === currentPage
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
-                )}
-              >
-                {page}
-              </button>
-            ));
-          })()}
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className={cn(
-              "px-4 py-2 border rounded-xl text-xs font-bold transition-colors cursor-pointer",
-              currentPage >= totalPages
-                ? "border-slate-100 text-slate-300 cursor-not-allowed dark:border-slate-800 dark:text-slate-600"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
+            {isFetching ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Loading more books...</span>
+              </>
+            ) : (
+              <span>Load More Books</span>
             )}
-          >
-            Next
           </button>
         </div>
       )}
