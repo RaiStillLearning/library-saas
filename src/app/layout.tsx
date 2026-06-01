@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/src/providers/query-provider";
 import { SupabaseProvider } from "@/src/providers/supabase-provider";
+import { ThemeProvider } from "@/src/providers/theme-provider";
 import { Toaster } from "@/src/components/ui/sonner";
 
 const inter = Inter({
@@ -22,13 +23,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} h-full antialiased dark`}>
       <body className="min-h-full flex flex-col font-sans">
         <QueryProvider>
-          <SupabaseProvider>
-            {children}
-            <Toaster richColors position="top-right" />
-          </SupabaseProvider>
+          <ThemeProvider>
+            <SupabaseProvider>
+              {children}
+              <Toaster richColors position="top-right" />
+            </SupabaseProvider>
+          </ThemeProvider>
         </QueryProvider>
       </body>
     </html>

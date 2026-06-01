@@ -3,8 +3,8 @@
 import React from "react";
 import { Bell, Search, Menu } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/src/components/ui/avatar";
-import Link from "next/link";
+import Image from "next/image";
+import { useTheme } from "@/src/providers/theme-provider";
 
 interface TopBarProps {
   onSearchChange?: (val: string) => void;
@@ -17,18 +17,7 @@ export function TopBar({
   searchPlaceholder = "Search books, authors, categories...",
   onMenuClick,
 }: TopBarProps) {
-  const { profile } = useAuth();
-
-  // Get name initials
-  const getInitials = (name?: string) => {
-    if (!name) return "JD";
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
-  };
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-45 flex h-16 w-full items-center justify-between border-b border-slate-100 bg-white px-6 md:px-8 dark:bg-slate-900 dark:border-slate-800 transition-colors">
@@ -63,19 +52,21 @@ export function TopBar({
           <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-slate-900" />
         </button>
 
-        {/* User Profile Avatar */}
-        <Link href="/profile" className="focus:outline-none">
-          <div className="flex items-center gap-2 group cursor-pointer">
-            <Avatar className="h-9 w-9 border border-slate-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors">
-              {profile?.avatar_url && (
-                <AvatarImage src={profile.avatar_url} alt={profile.name || "User Avatar"} />
-              )}
-              <AvatarFallback className="bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 text-xs font-semibold">
-                {getInitials(profile?.name)}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </Link>
+        {/* Theme Toggle Button replacing profile */}
+        <button
+          onClick={toggleTheme}
+          className="relative focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded-xl transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+          title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+        >
+          <Image
+            src={theme === "dark" ? "/logo/dark-mode.png" : "/logo/light-mode.png"}
+            alt={`${theme === "dark" ? "Dark" : "Light"} Mode Toggle`}
+            width={38}
+            height={38}
+            className="h-[38px] w-[38px] rounded-xl object-contain border border-slate-200 dark:border-slate-800"
+            priority
+          />
+        </button>
       </div>
     </header>
   );

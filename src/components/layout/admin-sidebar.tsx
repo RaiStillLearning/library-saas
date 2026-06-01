@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { BookOpen, LayoutDashboard, Book, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft, X } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
@@ -25,14 +26,15 @@ export function AdminSidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex flex-col flex-1">
         {/* Branding Logo */}
         <div className="flex items-center justify-between mb-8">
-          <Link href="/admin" className="flex items-center gap-3 group">
-            <div className="p-2 bg-blue-600 rounded-xl group-hover:scale-105 transition-transform">
-              <BookOpen className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-base font-bold text-slate-900 dark:text-slate-50 leading-tight">ReadSpace</span>
-              <span className="text-[10px] text-slate-400 font-medium">Admin Panel</span>
-            </div>
+          <Link href="/admin" className="flex items-center group shrink-0">
+            <Image
+              src="/logo/sidebar-logo.png"
+              alt="ReadSpace Logo"
+              width={160}
+              height={40}
+              className="h-10 w-auto object-contain dark:brightness-110"
+              priority
+            />
           </Link>
           {onClose && (
             <button
