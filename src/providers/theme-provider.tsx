@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     // Read from localStorage on mount
@@ -20,11 +20,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (savedTheme) {
       setTheme(savedTheme);
     } else {
-      setTheme("dark");
+      setTheme("light");
       // Set initial state class immediately on mount if localStorage is empty
       const root = window.document.documentElement;
-      root.classList.add("dark");
-      root.style.colorScheme = "dark";
+      root.classList.remove("dark");
+      root.style.colorScheme = "light";
     }
   }, []);
 

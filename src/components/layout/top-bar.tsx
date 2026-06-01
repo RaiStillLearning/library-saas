@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell, Search, Menu, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 import Image from "next/image";
 import { useTheme } from "@/src/providers/theme-provider";
@@ -55,17 +54,14 @@ export function TopBar({
         {/* Theme Toggle Button replacing profile */}
         <button
           onClick={toggleTheme}
-          className="relative focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded-xl transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+          className="p-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-450 dark:hover:text-slate-100 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-100 dark:border-slate-800 shadow-xs flex items-center justify-center relative hover:scale-105 active:scale-95 shrink-0"
           title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
         >
-          <Image
-            src={theme === "dark" ? "/logo/dark-mode.png" : "/logo/light-mode.png"}
-            alt={`${theme === "dark" ? "Dark" : "Light"} Mode Toggle`}
-            width={38}
-            height={38}
-            className="h-[38px] w-[38px] rounded-xl object-contain border border-slate-200 dark:border-slate-800"
-            priority
-          />
+          {theme === "dark" ? (
+            <Sun className="h-4.5 w-4.5 text-amber-500 animate-spin" style={{ animationDuration: "12s" }} />
+          ) : (
+            <Moon className="h-4.5 w-4.5 text-indigo-650" />
+          )}
         </button>
       </div>
     </header>
