@@ -2,17 +2,16 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BookOpen, LayoutDashboard, Book, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft, X } from "lucide-react";
+import { LayoutDashboard, Book, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft, X } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
-import { useTheme } from "@/src/providers/theme-provider";
+
 import { cn } from "@/src/lib/utils";
 
 export function AdminSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
-  const { theme } = useTheme();
+
 
   const menuItems = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -29,14 +28,14 @@ export function AdminSidebar({ onClose }: { onClose?: () => void }) {
         {/* Branding Logo */}
         <div className="flex items-center justify-between mb-8">
           <Link href="/admin" className="flex items-center group shrink-0">
-            <Image
-              src={theme === "dark" ? "/logo/dark-mode.png" : "/logo/light-mode.png"}
-              alt="ReadSpace Logo"
-              width={160}
-              height={40}
-              className="h-10 w-auto object-contain"
-              priority
-            />
+            <div className="h-10 overflow-hidden rounded-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo/sidebar-logo.png"
+                alt="ReadSpace"
+                className="h-10 w-auto object-contain"
+              />
+            </div>
           </Link>
           {onClose && (
             <button
