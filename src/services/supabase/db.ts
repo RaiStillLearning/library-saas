@@ -8,9 +8,22 @@ const isSupabaseConfigured = !!(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "your-supabase-anon-key"
 );
 
+function shouldUseMock(userId?: string): boolean {
+  if (!isSupabaseConfigured) return true;
+  if (userId && userId.startsWith("mock-")) return true;
+  
+  if (typeof window !== "undefined") {
+    const hasMockSession = localStorage.getItem("readspace_mock_user") !== null || 
+                          document.cookie.includes("readspace_mock_session");
+    if (hasMockSession) return true;
+  }
+  
+  return false;
+}
+
 // Favorites Operations
 export async function fetchFavorites(userId: string): Promise<string[]> {
-  if (!isSupabaseConfigured) {
+  if (shouldUseMock(userId)) {
     const saved = localStorage.getItem("readspace_saved_books");
     return saved ? JSON.parse(saved) : [];
   }
@@ -44,7 +57,7 @@ export async function addFavorite(userId: string, bookId: string): Promise<boole
     console.error("Error syncing to localStorage:", e);
   }
 
-  if (!isSupabaseConfigured) return true;
+  if (shouldUseMock(userId)) return true;
 
   try {
     const { error } = await supabase
@@ -70,7 +83,7 @@ export async function removeFavorite(userId: string, bookId: string): Promise<bo
     console.error("Error syncing to localStorage:", e);
   }
 
-  if (!isSupabaseConfigured) return true;
+  if (shouldUseMock(userId)) return true;
 
   try {
     const { error } = await supabase
@@ -89,7 +102,7 @@ export async function removeFavorite(userId: string, bookId: string): Promise<bo
 
 // Borrowings Operations
 export async function fetchBorrowings(userId: string): Promise<any[]> {
-  if (!isSupabaseConfigured) {
+  if (shouldUseMock(userId)) {
     const borrowed = localStorage.getItem("readspace_borrowed_books");
     return borrowed ? JSON.parse(borrowed) : [];
   }
@@ -137,7 +150,7 @@ export async function fetchBorrowings(userId: string): Promise<any[]> {
 }
 
 export async function fetchBorrowHistory(userId: string): Promise<any[]> {
-  if (!isSupabaseConfigured) {
+  if (shouldUseMock(userId)) {
     const history = localStorage.getItem("readspace_borrow_history");
     if (!history) {
       // Fallback: copy active borrowings as starting history
@@ -194,7 +207,7 @@ export async function fetchBorrowHistory(userId: string): Promise<any[]> {
 }
 
 export async function fetchAllBorrowingsAdmin(): Promise<any[]> {
-  if (!isSupabaseConfigured) {
+  if (shouldUseMock()) {
     const history = localStorage.getItem("readspace_borrow_history");
     const list = history ? JSON.parse(history) : [];
     return list.map((record: any) => ({
@@ -330,7 +343,7 @@ export async function borrowBook(
     console.error("Error syncing borrowing to localStorage:", e);
   }
 
-  if (!isSupabaseConfigured) return true;
+  if (shouldUseMock(userId)) return true;
 
   try {
     const { error } = await supabase.from("borrowings").insert({
@@ -372,7 +385,7 @@ export async function returnBook(userId: string, bookId: string): Promise<boolea
     console.error("Error syncing return to localStorage:", e);
   }
 
-  if (!isSupabaseConfigured) return true;
+  if (shouldUseMock(userId)) return true;
 
   try {
     const { error } = await supabase
@@ -418,7 +431,7 @@ export async function adminReturnBook(borrowingId: string, bookId: string): Prom
     console.error("Error syncing admin return to localStorage:", e);
   }
 
-  if (!isSupabaseConfigured) return true;
+  if (shouldUseMock()) return true;
 
   try {
     const { error } = await supabase

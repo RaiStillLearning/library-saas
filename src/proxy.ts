@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createServerSupabaseClient } from "./services/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // 1. Check for mock session
+  // 1. Check for mock session cookie first
   const mockSessionCookie = request.cookies.get("readspace_mock_session")?.value;
   let isAuthenticated = false;
   let role = "student";
@@ -22,10 +22,29 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // 2. If not authenticated via mock, check Supabase
-  if (!isAuthenticated) {
+  // 2. If not authenticated via mock, check real Supabase auth
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const isSupabaseConfigured =
+    supabaseUrl &&
+    supabaseUrl !== "https://placeholder.supabase.co" &&
+    supabaseAnonKey &&
+    supabaseAnonKey !== "placeholder-anon-key";
+
+  if (!isAuthenticated && isSupabaseConfigured) {
     try {
-      const supabase = await createServerSupabaseClient();
+      // Create Supabase client using request cookies (proxy-compatible)
+      const supabase = createServerClient(supabaseUrl!, supabaseAnonKey!, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            // In proxy we can't set cookies on the request,
+            // but we need this for the client to initialize
+          },
+        },
+      });
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         isAuthenticated = true;
@@ -56,7 +75,6 @@ export async function proxy(request: NextRequest) {
 
     // Protect admin routes
     if (path.startsWith("/admin") && role !== "admin") {
-      // Redirect non-admin trying to access admin pages to student home
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
@@ -72,7 +90,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - logo (public logo assets)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|logo).*)",
   ],
 };
+
