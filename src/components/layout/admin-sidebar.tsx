@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Book, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft, X } from "lucide-react";
+import { LayoutDashboard, Book, BookMarked, Grid, Users, ClipboardList, BarChart3, LogOut, ArrowLeft, X } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 
 import { cn } from "@/src/lib/utils";
@@ -15,7 +15,8 @@ export function AdminSidebar({ onClose }: { onClose?: () => void }) {
 
   const menuItems = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Books", href: "/admin/books", icon: Book },
+    { name: "ReadSpace Books", href: "/admin/readspace-books", icon: BookMarked },
+    { name: "Catalog Explorer", href: "/admin/books", icon: Book },
     { name: "Categories", href: "/admin/categories", icon: Grid },
     { name: "Students", href: "/admin/students", icon: Users },
     { name: "Borrowings", href: "/admin/borrowings", icon: ClipboardList },
