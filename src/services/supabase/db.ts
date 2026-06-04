@@ -1068,3 +1068,352 @@ export async function adminReturnReadSpaceBook(
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── OpenLibrary — Reading History ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface ReadingHistoryEntry {
+  id?: string;
+  user_id?: string;
+  work_id: string;
+  book_title: string;
+  book_cover?: string;
+  book_author?: string;
+  edition_id?: string;
+  last_opened_at?: string;
+  created_at?: string;
+}
+
+const RH_KEY = "readspace_reading_history";
+
+function getMockReadingHistory(): ReadingHistoryEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(RH_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMockReadingHistory(entries: ReadingHistoryEntry[]) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(RH_KEY, JSON.stringify(entries));
+  }
+}
+
+export async function fetchReadingHistory(
+  userId: string
+): Promise<ReadingHistoryEntry[]> {
+  if (shouldUseMock(userId)) {
+    const all = getMockReadingHistory().filter((e) => e.user_id === userId);
+    return all.sort(
+      (a, b) =>
+        new Date(b.last_opened_at || 0).getTime() -
+        new Date(a.last_opened_at || 0).getTime()
+    );
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("reading_history")
+      .select("*")
+      .eq("user_id", userId)
+      .order("last_opened_at", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching reading history:", error);
+    return getMockReadingHistory().filter((e) => e.user_id === userId);
+  }
+}
+
+export async function upsertReadingHistory(
+  userId: string,
+  entry: Omit<ReadingHistoryEntry, "id" | "user_id" | "created_at">
+): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  if (shouldUseMock(userId)) {
+    const all = getMockReadingHistory();
+    const idx = all.findIndex(
+      (e) => e.user_id === userId && e.work_id === entry.work_id
+    );
+    if (idx >= 0) {
+      all[idx] = { ...all[idx], ...entry, last_opened_at: now };
+    } else {
+      all.unshift({
+        id: `mock-rh-${Date.now()}`,
+        user_id: userId,
+        ...entry,
+        last_opened_at: now,
+        created_at: now,
+      });
+    }
+    saveMockReadingHistory(all);
+    return true;
+  }
+
+  try {
+    const { error } = await supabase.from("reading_history").upsert(
+      {
+        user_id: userId,
+        ...entry,
+        last_opened_at: now,
+      },
+      { onConflict: "user_id,work_id" }
+    );
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error upserting reading history:", error);
+    return false;
+  }
+}
+
+export async function deleteReadingHistoryEntry(
+  userId: string,
+  workId: string
+): Promise<boolean> {
+  if (shouldUseMock(userId)) {
+    const filtered = getMockReadingHistory().filter(
+      (e) => !(e.user_id === userId && e.work_id === workId)
+    );
+    saveMockReadingHistory(filtered);
+    return true;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("reading_history")
+      .delete()
+      .eq("user_id", userId)
+      .eq("work_id", workId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error deleting reading history entry:", error);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── OpenLibrary — Reading Lists ──────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type ReadingListType = "want_to_read" | "currently_reading" | "finished";
+
+export interface ReadingListEntry {
+  id?: string;
+  user_id?: string;
+  work_id: string;
+  book_title: string;
+  book_cover?: string;
+  book_author?: string;
+  list_type: ReadingListType;
+  added_at?: string;
+}
+
+const RL_KEY = "readspace_reading_list";
+
+function getMockReadingList(): ReadingListEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(RL_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMockReadingList(entries: ReadingListEntry[]) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(RL_KEY, JSON.stringify(entries));
+  }
+}
+
+export async function fetchReadingList(
+  userId: string,
+  listType?: ReadingListType
+): Promise<ReadingListEntry[]> {
+  if (shouldUseMock(userId)) {
+    const all = getMockReadingList().filter((e) => e.user_id === userId);
+    return listType ? all.filter((e) => e.list_type === listType) : all;
+  }
+
+  try {
+    let query = supabase
+      .from("reading_lists")
+      .select("*")
+      .eq("user_id", userId)
+      .order("added_at", { ascending: false });
+
+    if (listType) query = query.eq("list_type", listType);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []) as ReadingListEntry[];
+  } catch (error) {
+    console.error("Error fetching reading list:", error);
+    const all = getMockReadingList().filter((e) => e.user_id === userId);
+    return listType ? all.filter((e) => e.list_type === listType) : all;
+  }
+}
+
+export async function upsertReadingListItem(
+  userId: string,
+  entry: Omit<ReadingListEntry, "id" | "user_id" | "added_at">
+): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  if (shouldUseMock(userId)) {
+    const all = getMockReadingList();
+    const idx = all.findIndex(
+      (e) => e.user_id === userId && e.work_id === entry.work_id
+    );
+    if (idx >= 0) {
+      all[idx] = { ...all[idx], ...entry, added_at: now };
+    } else {
+      all.unshift({
+        id: `mock-rl-${Date.now()}`,
+        user_id: userId,
+        ...entry,
+        added_at: now,
+      });
+    }
+    saveMockReadingList(all);
+    return true;
+  }
+
+  try {
+    const { error } = await supabase.from("reading_lists").upsert(
+      { user_id: userId, ...entry, added_at: now },
+      { onConflict: "user_id,work_id" }
+    );
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error upserting reading list item:", error);
+    return false;
+  }
+}
+
+export async function removeFromReadingList(
+  userId: string,
+  workId: string
+): Promise<boolean> {
+  if (shouldUseMock(userId)) {
+    const filtered = getMockReadingList().filter(
+      (e) => !(e.user_id === userId && e.work_id === workId)
+    );
+    saveMockReadingList(filtered);
+    return true;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("reading_lists")
+      .delete()
+      .eq("user_id", userId)
+      .eq("work_id", workId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error removing reading list item:", error);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Activity Timeline ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type ActivityType =
+  | "borrowed"
+  | "returned"
+  | "started_reading"
+  | "added_to_list"
+  | "finished_reading";
+
+export interface ActivityEntry {
+  id?: string;
+  user_id?: string;
+  type: ActivityType;
+  book_title?: string;
+  book_cover?: string;
+  metadata?: Record<string, any>;
+  created_at?: string;
+}
+
+const ACT_KEY = "readspace_activities";
+
+function getMockActivities(userId: string): ActivityEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(`${ACT_KEY}_${userId}`);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMockActivities(userId: string, entries: ActivityEntry[]) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(`${ACT_KEY}_${userId}`, JSON.stringify(entries));
+  }
+}
+
+export async function logActivity(
+  userId: string,
+  entry: Omit<ActivityEntry, "id" | "user_id" | "created_at">
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  if (shouldUseMock(userId)) {
+    const all = getMockActivities(userId);
+    all.unshift({
+      id: `mock-act-${Date.now()}`,
+      user_id: userId,
+      ...entry,
+      created_at: now,
+    });
+    // Keep last 100 activities
+    saveMockActivities(userId, all.slice(0, 100));
+    return;
+  }
+
+  try {
+    await supabase.from("activities").insert({
+      user_id: userId,
+      ...entry,
+      created_at: now,
+    });
+  } catch (error) {
+    console.error("Error logging activity:", error);
+  }
+}
+
+export async function fetchActivityTimeline(
+  userId: string,
+  limit = 20
+): Promise<ActivityEntry[]> {
+  if (shouldUseMock(userId)) {
+    return getMockActivities(userId).slice(0, limit);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("activities")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return (data || []) as ActivityEntry[];
+  } catch (error) {
+    console.error("Error fetching activity timeline:", error);
+    return getMockActivities(userId).slice(0, limit);
+  }
+}

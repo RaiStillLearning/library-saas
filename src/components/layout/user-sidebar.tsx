@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Grid, BookMarked, Library, History, User, LogOut, X } from "lucide-react";
+import { Home, Compass, Grid, BookMarked, Globe, ListChecks, Library, History, User, LogOut, X } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 
 import { cn } from "@/src/lib/utils";
@@ -16,8 +16,9 @@ export function UserSidebar({ onClose }: { onClose?: () => void }) {
   const menuItems = [
     { name: "Home", href: "/", icon: Home },
     { name: "Gramedia", href: "/discover", icon: Compass },
-    { name: "Categories", href: "/categories", icon: Grid },
+    { name: "OpenLibrary", href: "/openlibrary", icon: Globe },
     { name: "ReadSpace Books", href: "/readspace-books", icon: BookMarked },
+    { name: "Reading Lists", href: "/reading-lists", icon: ListChecks },
     { name: "My Library", href: "/library", icon: Library },
     { name: "Borrow History", href: "/history", icon: History },
     { name: "Profile", href: "/profile", icon: User },

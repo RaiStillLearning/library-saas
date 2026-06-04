@@ -9,12 +9,14 @@ interface TopBarProps {
   onSearchChange?: (val: string) => void;
   searchPlaceholder?: string;
   onMenuClick?: () => void;
+  onSearchClick?: () => void;
 }
 
 export function TopBar({
   onSearchChange,
   searchPlaceholder = "Search books, authors, categories...",
   onMenuClick,
+  onSearchClick,
 }: TopBarProps) {
   const { theme, toggleTheme } = useTheme();
 
@@ -30,18 +32,17 @@ export function TopBar({
         </button>
       )}
 
-      {/* Search Input Area */}
-      <div className="relative flex flex-1 max-w-md">
-        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center pr-3">
-          {/* <Search className="h-4 w-4 text-slate-400" /> */}
-        </div>
-        {/* <input
-          type="search"
-          placeholder={searchPlaceholder}
-          onChange={(e) => onSearchChange?.(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-10 pr-4 text-sm outline-none placeholder:text-slate-400 focus:border-blue-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:focus:bg-slate-900 transition-all text-slate-900 dark:text-slate-50"
-        /> */}
-      </div>
+      {/* Search trigger button (opens command palette) */}
+      <button
+        onClick={onSearchClick}
+        className="flex flex-1 max-w-md items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs cursor-pointer"
+      >
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="hidden sm:inline">Search everything…</span>
+        <kbd className="ml-auto hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-400">
+          ⌘K
+        </kbd>
+      </button>
 
       {/* Right Side Icons */}
       <div className="flex items-center gap-4 ml-4">

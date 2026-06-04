@@ -12,9 +12,43 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ReadSpace — Digital Library",
+  title: {
+    default: "ReadSpace — Your Modern Reading Platform",
+    template: "%s | ReadSpace",
+  },
   description:
-    "A modern SaaS digital reading platform for book discovery, digital reading, and personal library management.",
+    "ReadSpace is a modern SaaS reading platform combining book discovery (Gramedia), digital reading (OpenLibrary), and personal library management — all in one place.",
+  keywords: ["digital library", "book discovery", "online reading", "openlibrary", "gramedia", "e-library", "readspace"],
+  authors: [{ name: "ReadSpace" }],
+  creator: "ReadSpace",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://readspace.vercel.app",
+    siteName: "ReadSpace",
+    title: "ReadSpace — Your Modern Reading Platform",
+    description:
+      "Discover, read, and manage books on ReadSpace. Search millions of titles from Gramedia and OpenLibrary, borrow from the internal library, and track your reading journey.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ReadSpace — Modern Reading Platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ReadSpace — Your Modern Reading Platform",
+    description: "Discover, read, and manage books on ReadSpace.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
 };
 
 export default function RootLayout({

@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, TrendingUp, BookOpen, Search, ArrowRight, Loader2 } from "lucide-react";
+import { Sparkles, TrendingUp, BookOpen, Search, ArrowRight, Loader2, Clock } from "lucide-react";
 import { getBooks, getGenreStats, BukuAcakBook } from "@/src/services/api/books";
 import { BookCard, mapApiBookToCard } from "@/src/components/books/book-card";
 import { CategoryCard } from "@/src/components/books/category-card";
 import { BookGridSkeleton } from "@/src/components/shared/skeletons";
+import { fetchReadingHistory, ReadingHistoryEntry } from "@/src/services/supabase/db";
+import { useAuth } from "@/src/features/auth/hooks/use-auth";
 import Link from "next/link";
 
 // Map genre stats from API into category card format
@@ -58,6 +60,15 @@ const GENRE_COLOR_MAP: Record<string, string> = {
 export default function UserHomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const { user, profile } = useAuth();
+  const [recentlyOpened, setRecentlyOpened] = useState<ReadingHistoryEntry[]>([]);
+
+  const userId = user?.id || profile?.id || "";
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchReadingHistory(userId).then((data) => setRecentlyOpened(data.slice(0, 6))).catch(() => {});
+  }, [userId]);
 
   // Featured books - page 1
   const { data: featuredData, isLoading: isFeaturedLoading } = useQuery({
@@ -153,7 +164,47 @@ export default function UserHomePage() {
         </form>
       </section>
 
-      {/* 2. Featured Books Section */}
+      {/* 2. Recently Opened (OpenLibrary reading history) */}
+      {recentlyOpened.length > 0 && (
+        <section className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-violet-50 dark:bg-violet-950/40 rounded-xl text-violet-600 dark:text-violet-400">
+                <Clock className="h-5 w-5" />
+              </div>
+              <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-slate-50">Recently Opened</h2>
+            </div>
+            <Link href="/reading-lists" className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
+              <span>Reading Lists</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
+            {recentlyOpened.map((entry) => (
+              <Link
+                key={entry.work_id}
+                href={`/openlibrary/read/${entry.work_id}`}
+                className="group flex-shrink-0 w-36 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-md transition-all"
+              >
+                <div className="h-24 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 flex items-center justify-center overflow-hidden">
+                  {entry.book_cover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={entry.book_cover} alt={entry.book_title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <BookOpen className="h-8 w-8 text-violet-300" />
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200 line-clamp-2 leading-tight">{entry.book_title}</p>
+                  <p className="text-[10px] text-violet-500 dark:text-violet-400 font-semibold mt-1.5">Open Again →</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 3. Featured Books Section */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
