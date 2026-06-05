@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   BookMarked,
   Search,
@@ -15,6 +16,7 @@ import {
   Clock,
   DollarSign,
   ClipboardList,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -31,6 +33,11 @@ const CATEGORIES = ["All", "Fiction", "Science Fiction", "Technology", "Self-Hel
 
 export default function ReadSpaceBooksPage() {
   const { user, profile } = useAuth();
+
+  // Check if the user has a @readspace.co email domain
+  const userEmail = profile?.email || user?.email || "";
+  const isReadSpaceUser = userEmail.toLowerCase().endsWith("@readspace.co");
+
   const [books, setBooks] = useState<ReadSpaceBook[]>([]);
   const [myBorrowings, setMyBorrowings] = useState<ReadSpaceBorrowing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +50,7 @@ export default function ReadSpaceBooksPage() {
   const userId = user?.id || profile?.id || "";
 
   const loadData = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !isReadSpaceUser) return;
     setIsLoading(true);
     try {
       const [booksData, borrowingsData] = await Promise.all([
@@ -149,6 +156,35 @@ export default function ReadSpaceBooksPage() {
       return `${diffDays} day${diffDays > 1 ? "s" : ""} remaining`;
     }
   };
+
+  if (!isReadSpaceUser) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-2xl w-24 h-24 -translate-x-4 -translate-y-4" />
+          <div className="relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-xl">
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl">
+              <Lock className="h-10 w-10 text-indigo-600 dark:text-indigo-400 animate-bounce" style={{ animationDuration: "3s" }} />
+            </div>
+          </div>
+        </div>
+        <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-50 font-display">
+          Exclusive Access Required
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-md font-medium text-sm md:text-base leading-relaxed">
+          The ReadSpace internal library collection is only available to team members with a <code className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-semibold font-mono">@readspace.co</code> email address.
+        </p>
+        <div className="mt-8">
+          <Link
+            href="/"
+            className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-all shadow-md shadow-indigo-600/10 active:scale-95 cursor-pointer"
+          >
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const activeLoans = myBorrowings.filter((b) => b.status === "borrowed" || b.status === "overdue");
   const pendingLoans = myBorrowings.filter((b) => b.status === "pending");

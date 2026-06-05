@@ -30,12 +30,15 @@ const NAV_ITEMS = [
 ];
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const userEmail = profile?.email || user?.email || "";
+  const isReadSpaceUser = userEmail.toLowerCase().endsWith("@readspace.co");
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -141,7 +144,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
           {/* Navigation */}
           <CommandGroup heading="Navigate">
-            {NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.filter((item) => item.href !== "/readspace-books" || isReadSpaceUser).map((item) => (
               <CommandItem key={item.href} onSelect={() => handleNavigate(item.href)} value={item.label}>
                 <item.icon className="mr-2 h-4 w-4 text-slate-400" />
                 {item.label}

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { searchOpenLibrary, getCoverUrl, extractWorkId, getAvailabilityFromDoc } from "@/src/services/api/openlibrary";
 import { getBooks } from "@/src/services/api/books";
 import { fetchReadSpaceBooks } from "@/src/services/supabase/db";
+import { useAuth } from "@/src/features/auth/hooks/use-auth";
 
 // ─── Domain badge ─────────────────────────────────────────────────────────────
 function DomainBadge({ domain }: { domain: "gramedia" | "openlibrary" | "readspace" }) {
@@ -94,6 +95,10 @@ function LoadingSection({ title }: { title: string }) {
 function GlobalSearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, profile } = useAuth();
+
+  const userEmail = profile?.email || user?.email || "";
+  const isReadSpaceUser = userEmail.toLowerCase().endsWith("@readspace.co");
 
   const initialQ = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQ);
@@ -115,7 +120,7 @@ function GlobalSearchContent() {
 
     setLoadingGramedia(true);
     setLoadingOl(true);
-    setLoadingRs(true);
+    setLoadingRs(isReadSpaceUser);
     setErrorGramedia(false);
     setErrorOl(false);
 
@@ -132,21 +137,25 @@ function GlobalSearchContent() {
       .finally(() => setLoadingOl(false));
 
     // ReadSpace Books (local filter — no extra API call needed)
-    fetchReadSpaceBooks()
-      .then((books) => {
-        const lower = q.toLowerCase();
-        setRsResults(
-          books
-            .filter((b) =>
-              b.title.toLowerCase().includes(lower) ||
-              b.author.toLowerCase().includes(lower)
-            )
-            .slice(0, 5)
-        );
-      })
-      .catch(() => setRsResults([]))
-      .finally(() => setLoadingRs(false));
-  }, []);
+    if (isReadSpaceUser) {
+      fetchReadSpaceBooks()
+        .then((books) => {
+          const lower = q.toLowerCase();
+          setRsResults(
+            books
+              .filter((b) =>
+                b.title.toLowerCase().includes(lower) ||
+                b.author.toLowerCase().includes(lower)
+              )
+              .slice(0, 5)
+          );
+        })
+        .catch(() => setRsResults([]))
+        .finally(() => setLoadingRs(false));
+    } else {
+      setRsResults([]);
+    }
+  }, [isReadSpaceUser]);
 
   useEffect(() => {
     if (initialQ) runSearch(initialQ);
@@ -206,7 +215,7 @@ function GlobalSearchContent() {
 
       {/* Results */}
       {submitted && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${isReadSpaceUser ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
           {/* Gramedia */}
           <div className="space-y-3">
             {loadingGramedia ? (
@@ -282,34 +291,36 @@ function GlobalSearchContent() {
           </div>
 
           {/* ReadSpace Books */}
-          <div className="space-y-3">
-            {loadingRs ? (
-              <LoadingSection title="ReadSpace Books" />
-            ) : (
-              <>
-                <SectionHeader icon={BookMarked} title="ReadSpace Books" count={rsResults.length} color="indigo" />
-                {rsResults.length === 0 && (
-                  <p className="text-xs text-slate-400 py-4 text-center">No ReadSpace Books results</p>
-                )}
-                {rsResults.map((book) => (
-                  <ResultCard
-                    key={book.id}
-                    href="/readspace-books"
-                    cover={book.cover_url}
-                    title={book.title}
-                    subtitle={book.author}
-                    badge={<DomainBadge domain="readspace" />}
-                    extra={book.available_stock > 0 ? `${book.available_stock} available` : "Out of stock"}
-                  />
-                ))}
-                {rsResults.length > 0 && (
-                  <Link href="/readspace-books" className="flex items-center gap-1 text-xs font-semibold text-indigo-500 hover:text-indigo-600 mt-1">
-                    Browse all books <ArrowRight className="h-3 w-3" />
-                  </Link>
-                )}
-              </>
-            )}
-          </div>
+          {isReadSpaceUser && (
+            <div className="space-y-3">
+              {loadingRs ? (
+                <LoadingSection title="ReadSpace Books" />
+              ) : (
+                <>
+                  <SectionHeader icon={BookMarked} title="ReadSpace Books" count={rsResults.length} color="indigo" />
+                  {rsResults.length === 0 && (
+                    <p className="text-xs text-slate-400 py-4 text-center">No ReadSpace Books results</p>
+                  )}
+                  {rsResults.map((book) => (
+                    <ResultCard
+                      key={book.id}
+                      href="/readspace-books"
+                      cover={book.cover_url}
+                      title={book.title}
+                      subtitle={book.author}
+                      badge={<DomainBadge domain="readspace" />}
+                      extra={book.available_stock > 0 ? `${book.available_stock} available` : "Out of stock"}
+                    />
+                  ))}
+                  {rsResults.length > 0 && (
+                    <Link href="/readspace-books" className="flex items-center gap-1 text-xs font-semibold text-indigo-500 hover:text-indigo-600 mt-1">
+                      Browse all books <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

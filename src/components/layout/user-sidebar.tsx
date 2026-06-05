@@ -3,21 +3,24 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Grid, BookMarked, Globe, ListChecks, Library, History, User, LogOut, X } from "lucide-react";
+import { Home, Compass, Grid, BookMarked, Globe, ListChecks, Library, History, User, LogOut, X, Lock } from "lucide-react";
 import { useAuth } from "@/src/features/auth/hooks/use-auth";
 
 import { cn } from "@/src/lib/utils";
 
 export function UserSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { signOut, profile, user } = useAuth();
 
+  // Check if the user has a @readspace.co email domain
+  const userEmail = profile?.email || user?.email || "";
+  const isReadSpaceUser = userEmail.toLowerCase().endsWith("@readspace.co");
 
   const menuItems = [
     { name: "Home", href: "/", icon: Home },
     { name: "Gramedia", href: "/discover", icon: Compass },
     { name: "OpenLibrary", href: "/openlibrary", icon: Globe },
-    { name: "ReadSpace Books", href: "/readspace-books", icon: BookMarked },
+    { name: "ReadSpace Books", href: "/readspace-books", icon: BookMarked, requiresReadSpace: true },
     { name: "Reading Lists", href: "/reading-lists", icon: ListChecks },
     { name: "My Library", href: "/library", icon: Library },
     { name: "Borrow History", href: "/history", icon: History },
@@ -62,6 +65,21 @@ export function UserSidebar({ onClose }: { onClose?: () => void }) {
             const Icon = item.icon;
             const isActive =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const isDisabled = item.requiresReadSpace && !isReadSpaceUser;
+
+            if (isDisabled) {
+              return (
+                <div
+                  key={item.name}
+                  title="Only available for @readspace.co members"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 dark:text-slate-600 cursor-not-allowed select-none"
+                >
+                  <Icon className="h-4 w-4 text-slate-300 dark:text-slate-600" />
+                  <span className="flex-1">{item.name}</span>
+                  <Lock className="h-3 w-3 text-slate-300 dark:text-slate-600" />
+                </div>
+              );
+            }
 
             return (
               <Link
