@@ -111,6 +111,7 @@ export default function AdminDashboardPage() {
   const activeBorrowings = borrowings.filter((b) => b.status === "borrowed");
   const overdueBorrowings = borrowings.filter((b) => {
     if (b.status !== "borrowed") return false;
+    if (!b.due_date) return false;
     const due = new Date(b.due_date);
     return due < new Date();
   });

@@ -100,7 +100,7 @@ export function LoginForm() {
       </div>
 
       {!isRegister ? (
-        <Form {...loginForm}>
+        <Form {...loginForm} key="login-form-provider">
           <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
             <FormField
               control={loginForm.control}
@@ -163,7 +163,7 @@ export function LoginForm() {
           </form>
         </Form>
       ) : (
-        <Form {...registerForm}>
+        <Form {...registerForm} key="register-form-provider">
           <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
             <FormField
               control={registerForm.control}

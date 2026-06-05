@@ -12,6 +12,9 @@ import {
   X,
   Package,
   User,
+  Clock,
+  DollarSign,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -117,12 +120,42 @@ export default function ReadSpaceBooksPage() {
     }
   };
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString("en-US", {
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
+  };
+
+  const getDueStatusLabel = (b: ReadSpaceBorrowing) => {
+    if (b.status === "pending") return "Pending Admin Approval";
+    if (b.status === "rejected") return `Rejected: ${b.rejection_reason || "No reason given"}`;
+    if (b.status === "expired") return "Request Expired";
+    if (b.status === "returned") return `Returned on ${formatDate(b.returned_at)}`;
+
+    if (!b.due_date) return "—";
+    const dueTime = new Date(b.due_date).setHours(0, 0, 0, 0);
+    const todayTime = new Date().setHours(0, 0, 0, 0);
+    const diffTime = dueTime - todayTime;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? "s" : ""}`;
+    } else if (diffDays === 0) {
+      return "Due Today";
+    } else {
+      return `${diffDays} day${diffDays > 1 ? "s" : ""} remaining`;
+    }
+  };
+
+  const activeLoans = myBorrowings.filter((b) => b.status === "borrowed" || b.status === "overdue");
+  const pendingLoans = myBorrowings.filter((b) => b.status === "pending");
+  const overdueLoans = myBorrowings.filter((b) => b.status === "overdue");
+  const outstandingFines = myBorrowings
+    .filter((b) => b.fine_amount && b.fine_amount > 0 && !b.fine_paid)
+    .reduce((sum, b) => sum + (b.fine_amount || 0), 0);
 
   return (
     <div className="space-y-8 pb-16">
@@ -137,48 +170,138 @@ export default function ReadSpaceBooksPage() {
             Browse and borrow from the ReadSpace internal library collection
           </p>
         </div>
-        {myBorrowings.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
-            <BookOpen className="h-4 w-4 text-indigo-500" />
-            <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-400">
-              {myBorrowings.length} book{myBorrowings.length > 1 ? "s" : ""} borrowed
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* Active Borrowings Strip */}
-      {myBorrowings.length > 0 && (
-        <div className="bg-indigo-50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 p-5">
-          <h2 className="text-sm font-bold text-indigo-700 dark:text-indigo-400 mb-3 flex items-center gap-1.5">
-            <BookOpen className="h-4 w-4" />
-            Currently Borrowing
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {myBorrowings.map((b) => (
-              <div
-                key={b.id}
-                className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl px-4 py-2.5 border border-indigo-100 dark:border-indigo-900/30 shadow-sm"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-tight">
-                    {b.book?.title || "Unknown"}
-                  </p>
-                  <p className="text-xs text-slate-400">Due: {formatDate(b.due_date)}</p>
-                </div>
-                <button
-                  onClick={() => handleReturn(b)}
-                  disabled={returningId === b.id}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-                >
-                  {returningId === b.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    "Return"
-                  )}
-                </button>
+      {/* Stats Cards */}
+      {userId && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Active Loans",
+              value: activeLoans.length,
+              icon: BookOpen,
+              color: "indigo",
+              sub: "due in 14 days",
+            },
+            {
+              label: "Pending Requests",
+              value: pendingLoans.length,
+              icon: Clock,
+              color: "amber",
+              sub: "waiting for approval",
+            },
+            {
+              label: "Overdue Books",
+              value: overdueLoans.length,
+              icon: AlertCircle,
+              color: "rose",
+              sub: "late returns",
+            },
+            {
+              label: "Outstanding Fines",
+              value: `Rp ${outstandingFines.toLocaleString()}`,
+              icon: DollarSign,
+              color: outstandingFines > 0 ? "rose" : "emerald",
+              sub: outstandingFines > 0 ? "unpaid fines" : "all clear",
+            },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-xs"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {card.label}
+                </span>
+                <card.icon className={`h-4 w-4 ${
+                  card.color === "indigo" ? "text-indigo-500" :
+                  card.color === "amber" ? "text-amber-500" :
+                  card.color === "rose" ? "text-rose-500" : "text-emerald-500"
+                }`} />
               </div>
-            ))}
+              <p className="text-xl font-black text-slate-900 dark:text-slate-50 mt-1">
+                {isLoading ? "—" : card.value}
+              </p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-550 font-medium mt-0.5">{card.sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Active Borrowings & Requests list */}
+      {userId && myBorrowings.length > 0 && (
+        <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-5 space-y-4">
+          <h2 className="text-sm font-bold text-slate-700 dark:text-slate-350 flex items-center gap-1.5">
+            <ClipboardList className="h-4 w-4 text-indigo-500" />
+            <span>My Loans & Requests</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {myBorrowings
+              .filter((b) => ["pending", "borrowed", "overdue", "rejected", "returned"].includes(b.status))
+              .map((b) => {
+                const isActive = b.status === "borrowed" || b.status === "overdue";
+                const isOverdue = b.status === "overdue";
+                const isPending = b.status === "pending";
+                const isRejected = b.status === "rejected";
+                const isReturned = b.status === "returned";
+
+                let statusBadgeColor = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+                if (isPending) statusBadgeColor = "bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400";
+                if (isActive) statusBadgeColor = isOverdue ? "bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400" : "bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400";
+                if (isRejected) statusBadgeColor = "bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400";
+                if (isReturned) statusBadgeColor = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400";
+
+                const dueLabel = getDueStatusLabel(b);
+                const hasFine = b.fine_amount && b.fine_amount > 0;
+
+                return (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-xs"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-850 dark:text-slate-200 text-sm leading-snug">
+                          {b.book?.title || "Unknown Book"}
+                        </span>
+                        {b.borrow_code && (
+                          <span className="font-mono text-[9px] bg-slate-50 dark:bg-slate-850 text-slate-400 font-bold px-1.5 py-0.5 rounded-sm">
+                            {b.borrow_code}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase tracking-wide ${statusBadgeColor}`}>
+                          {b.status}
+                        </span>
+                        <span className={`font-semibold ${
+                          isOverdue ? "text-rose-500" : isPending ? "text-amber-605" : isRejected ? "text-slate-400" : "text-slate-550 dark:text-slate-400"
+                        }`}>
+                          {dueLabel}
+                        </span>
+                        {hasFine && (
+                          <span className={`font-bold ${b.fine_paid ? "text-emerald-500" : "text-rose-500"}`}>
+                            Fine: Rp {b.fine_amount?.toLocaleString()} ({b.fine_paid ? "Paid" : "Unpaid"})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isActive && (
+                      <button
+                        onClick={() => handleReturn(b)}
+                        disabled={returningId === b.id}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        {returningId === b.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          "Return"
+                        )}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

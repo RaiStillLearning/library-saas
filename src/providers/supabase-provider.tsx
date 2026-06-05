@@ -13,6 +13,8 @@ export interface UserProfile {
   avatar_url?: string;
   role: "student" | "admin";
   created_at?: string;
+  approval_required?: boolean;
+  status?: "active" | "suspended" | "graduated";
 }
 
 interface AuthContextType {
@@ -36,6 +38,8 @@ const MOCK_PROFILES = {
     name: "Admin Manager",
     role: "admin" as const,
     avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&h=256&fit=crop",
+    approval_required: false,
+    status: "active" as const,
   },
   "student@readspace.com": {
     id: "mock-student-id",
@@ -43,6 +47,8 @@ const MOCK_PROFILES = {
     name: "John Doe",
     role: "student" as const,
     avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&h=256&fit=crop",
+    approval_required: true,
+    status: "active" as const,
   },
 };
 
@@ -59,14 +65,35 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== "your-supabase-anon-key";
 
+  const clearSession = () => {
+    setUser(null);
+    setProfile(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("readspace_mock_user");
+      localStorage.removeItem("readspace_mock_profile");
+    }
+    document.cookie = "readspace_mock_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "readspace_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    if (isSupabaseConfigured) {
+      supabase.auth.signOut().catch(() => {});
+    }
+  };
+
   useEffect(() => {
     // 1. Check for mock session first (even if Supabase is configured)
     const storedUser = typeof window !== "undefined" ? localStorage.getItem("readspace_mock_user") : null;
     const storedProfile = typeof window !== "undefined" ? localStorage.getItem("readspace_mock_profile") : null;
 
     if (storedUser && storedProfile) {
+      const parsedProfile = JSON.parse(storedProfile);
+      if (parsedProfile.status === "suspended") {
+        toast.error("Your account has been suspended. Please contact the administrator.");
+        clearSession();
+        setIsLoading(false);
+        return;
+      }
       setUser(JSON.parse(storedUser));
-      setProfile(JSON.parse(storedProfile));
+      setProfile(parsedProfile);
       setIsLoading(false);
       return;
     }
@@ -82,7 +109,6 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
 
         if (session?.user) {
-          setUser(session.user);
           // Fetch profile
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
@@ -91,6 +117,12 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
             .single();
 
           if (!profileError && profileData) {
+            if (profileData.status === "suspended") {
+              toast.error("Your account has been suspended. Please contact the administrator.");
+              clearSession();
+              return;
+            }
+            setUser(session.user);
             setProfile(profileData as UserProfile);
             document.cookie = `readspace_user_role=${profileData.role}; path=/; max-age=604800; SameSite=Lax`;
           } else {
@@ -100,7 +132,10 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
               email: session.user.email || "",
               name: session.user.user_metadata?.name || "Reader",
               role: "student",
+              status: "active",
+              approval_required: true,
             };
+            setUser(session.user);
             setProfile(defaultProfile);
             document.cookie = `readspace_user_role=student; path=/; max-age=604800; SameSite=Lax`;
           }
@@ -118,12 +153,6 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          // Clear mock session if we logged in via real Supabase
-          localStorage.removeItem("readspace_mock_user");
-          localStorage.removeItem("readspace_mock_profile");
-          document.cookie = "readspace_mock_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-
-          setUser(session.user);
           const { data: profileData } = await supabase
             .from("profiles")
             .select("*")
@@ -131,14 +160,28 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
             .single();
 
           if (profileData) {
+            if (profileData.status === "suspended") {
+              toast.error("Your account has been suspended. Please contact the administrator.");
+              clearSession();
+              return;
+            }
+            // Clear mock session if we logged in via real Supabase
+            localStorage.removeItem("readspace_mock_user");
+            localStorage.removeItem("readspace_mock_profile");
+            document.cookie = "readspace_mock_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+            setUser(session.user);
             setProfile(profileData as UserProfile);
             document.cookie = `readspace_user_role=${profileData.role}; path=/; max-age=604800; SameSite=Lax`;
           } else {
+            setUser(session.user);
             setProfile({
               id: session.user.id,
               email: session.user.email || "",
               name: session.user.user_metadata?.name || "Reader",
               role: "student",
+              status: "active",
+              approval_required: true,
             });
             document.cookie = `readspace_user_role=student; path=/; max-age=604800; SameSite=Lax`;
           }
@@ -168,9 +211,16 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
       // If Supabase is not configured OR the user is using the demo credentials, use Mock auth
       if (!isSupabaseConfigured || isDemoAccount) {
-        const mockProfile = MOCK_PROFILES[lowercaseEmail as keyof typeof MOCK_PROFILES];
+        const storedProfilesStr = typeof window !== "undefined" ? localStorage.getItem("readspace_profiles_list") : null;
+        const storedProfiles = storedProfilesStr ? JSON.parse(storedProfilesStr) : [];
+        
+        const mockProfile = storedProfiles.find((p: any) => p.email.toLowerCase() === lowercaseEmail)
+          || MOCK_PROFILES[lowercaseEmail as keyof typeof MOCK_PROFILES];
 
         if (mockProfile) {
+          if (mockProfile.status === "suspended") {
+            throw new Error("Your account has been suspended. Please contact the administrator.");
+          }
           const mockUser = { id: mockProfile.id, email: mockProfile.email };
           setUser(mockUser);
           setProfile(mockProfile);
@@ -190,6 +240,8 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
             name: lowercaseEmail.split("@")[0],
             role: lowercaseEmail.includes("admin") ? "admin" : "student",
             avatar_url: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&h=256&fit=crop`,
+            status: "active",
+            approval_required: true,
           };
           setUser(mockUser);
           setProfile(newMockProfile);
@@ -209,7 +261,6 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       if (data.user) {
-        setUser(data.user);
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
@@ -217,9 +268,15 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (!profileError && profileData) {
+          if (profileData.status === "suspended") {
+            await supabase.auth.signOut();
+            throw new Error("Your account has been suspended. Please contact the administrator.");
+          }
+          setUser(data.user);
           setProfile(profileData as UserProfile);
           document.cookie = `readspace_user_role=${profileData.role}; path=/; max-age=604800; SameSite=Lax`;
         } else {
+          setUser(data.user);
           document.cookie = `readspace_user_role=student; path=/; max-age=604800; SameSite=Lax`;
         }
       }
@@ -227,6 +284,11 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (error) {
       const err = error as { message?: string };
+      if (err.message?.includes("suspended")) {
+        toast.error(err.message);
+        return false;
+      }
+      
       console.warn("Supabase auth failed, falling back to mock user session:", err);
       
       // Fallback to mock session so the user is never blocked in local development
@@ -238,6 +300,8 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         name: lowercaseEmail.split("@")[0],
         role: lowercaseEmail.includes("admin") ? "admin" : "student",
         avatar_url: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&h=256&fit=crop`,
+        status: "active",
+        approval_required: true,
       };
       
       setUser(mockUser);
