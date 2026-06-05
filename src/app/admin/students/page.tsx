@@ -13,12 +13,14 @@ import {
   Loader2,
   Shield,
   ShieldAlert,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   fetchAllProfilesAdmin,
   updateProfileAdmin,
   deleteProfileAdmin,
+  createProfileAdmin,
   Profile,
 } from "@/src/services/supabase/db";
 
@@ -32,6 +34,14 @@ export default function AdminStudentsPage() {
   const [modalStatus, setModalStatus] = useState<"active" | "suspended" | "graduated">("active");
   const [modalApproval, setModalApproval] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Register Modal State
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerStatus, setRegisterStatus] = useState<"active" | "suspended" | "graduated">("active");
+  const [registerApproval, setRegisterApproval] = useState(true);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   // Delete State
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -62,6 +72,48 @@ export default function AdminStudentsPage() {
 
   const handleCloseEdit = () => {
     setEditingStudent(null);
+  };
+
+  const handleOpenRegister = () => {
+    setRegisterName("");
+    setRegisterEmail("");
+    setRegisterStatus("active");
+    setRegisterApproval(true);
+    setShowRegisterModal(true);
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registerName.trim()) {
+      toast.error("Student name is required.");
+      return;
+    }
+    if (!registerEmail.trim() || !registerEmail.includes("@")) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    setIsRegistering(true);
+    try {
+      const success = await createProfileAdmin({
+        name: registerName.trim(),
+        email: registerEmail.trim().toLowerCase(),
+        status: registerStatus,
+        approval_required: registerApproval,
+      });
+
+      if (success) {
+        toast.success(`Student ${registerName} registered successfully.`);
+        await loadStudents();
+        setShowRegisterModal(false);
+      } else {
+        toast.error("Failed to register student.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "An error occurred during registration.");
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
   const handleUpdateStudent = async () => {
@@ -135,8 +187,14 @@ export default function AdminStudentsPage() {
             Manage account status, toggles for borrowing approval requirements, and delete profiles.
           </p>
         </div>
+        <button
+          onClick={handleOpenRegister}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer shadow-sm hover:shadow active:scale-95 shrink-0"
+        >
+          <Plus className="h-4.5 w-4.5" />
+          <span>Register Student</span>
+        </button>
       </div>
-
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {[
@@ -363,6 +421,124 @@ export default function AdminStudentsPage() {
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Register Student Modal */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-1 flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-600" />
+              <span>Register New Student</span>
+            </h2>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 font-medium">
+              Create a new student profile. They will be able to log in using their email.
+            </p>
+
+            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+              {/* Full Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Aditya Pratama"
+                  value={registerName}
+                  onChange={(e) => setRegisterName(e.target.value)}
+                  className="w-full text-xs p-3 border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 rounded-xl outline-hidden focus:border-indigo-400 dark:focus:border-indigo-900 transition-colors text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              {/* Email Address */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. aditya@readspace.edu"
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
+                  className="w-full text-xs p-3 border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 rounded-xl outline-hidden focus:border-indigo-400 dark:focus:border-indigo-900 transition-colors text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              {/* Account Status Field */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Account Status
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["active", "suspended", "graduated"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setRegisterStatus(s)}
+                      className={`py-2 px-3 text-xs font-bold capitalize rounded-xl border transition-all cursor-pointer ${
+                        registerStatus === s
+                          ? s === "active"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/40"
+                            : s === "suspended"
+                            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/40"
+                            : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40"
+                          : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-850 dark:text-slate-400 dark:hover:bg-slate-750"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Approval Required Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl">
+                <div>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Approval Required?
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                    If bypassed, borrow requests are auto-approved.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRegisterApproval(!registerApproval)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    registerApproval ? "bg-indigo-600" : "bg-slate-200 dark:bg-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      registerApproval ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3 mt-8">
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/10 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isRegistering && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Register Student
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

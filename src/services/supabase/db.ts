@@ -2249,3 +2249,53 @@ export async function deleteProfileAdmin(profileId: string): Promise<{ success: 
     return { success: false, message: "An error occurred while deleting the student profile." };
   }
 }
+
+export async function createProfileAdmin(
+  profile: Omit<Profile, "id" | "role" | "created_at">
+): Promise<boolean> {
+  if (shouldUseMock()) {
+    const profiles = getMockProfiles();
+    
+    if (profiles.some((p) => p.email.toLowerCase() === profile.email.toLowerCase())) {
+      throw new Error("A student profile with this email already exists.");
+    }
+
+    const newProfile: Profile = {
+      id: `mock-std-${Date.now()}`,
+      ...profile,
+      role: "student",
+      created_at: new Date().toISOString(),
+    };
+    profiles.push(newProfile);
+    saveMockProfiles(profiles);
+    return true;
+  }
+
+  try {
+    const { data: existing, error: checkErr } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", profile.email)
+      .maybeSingle();
+    
+    if (checkErr) throw checkErr;
+    if (existing) {
+      throw new Error("A student profile with this email already exists.");
+    }
+
+    const newId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `usr-${Date.now()}`;
+    const { error } = await supabase
+      .from("profiles")
+      .insert({
+        id: newId,
+        ...profile,
+        role: "student",
+        created_at: new Date().toISOString(),
+      });
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error creating profile:", error);
+    throw error;
+  }
+}

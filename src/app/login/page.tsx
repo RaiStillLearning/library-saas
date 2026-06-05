@@ -128,7 +128,7 @@ export default function LoginPage() {
         </div>
 
         {/* Help Floating Button bottom-right */}
-        <button
+        {/* <button
           onClick={() => {
             alert(
               "ReadSpace Demo Credentials:\n\n" +
@@ -141,7 +141,7 @@ export default function LoginPage() {
           aria-label="Help information"
         >
           <HelpCircle className="h-5 w-5" />
-        </button>
+        </button> */}
       </div>
     </div>
   );
