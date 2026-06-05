@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     "pinjam buku",
     "buku indonesia",
     "reading list",
-    "baca online"
+    "baca online",
   ],
   authors: [{ name: "ReadSpace" }],
   creator: "ReadSpace",
@@ -65,7 +65,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "ReadSpace — Your Modern Reading Platform & Digital Library",
-    description: "Cari, baca, dan kelola buku Anda di ReadSpace. Platform baca buku & e-library terlengkap.",
+    description:
+      "Cari, baca, dan kelola buku Anda di ReadSpace. Platform baca buku & e-library terlengkap.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -90,28 +91,30 @@ export default function RootLayout({
               {
                 "@context": "https://schema.org",
                 "@type": "WebSite",
-                "name": "ReadSpace",
-                "alternateName": ["Read Space", "ReadSpace Library"],
-                "url": "https://kamarprogrammer.site",
-                "potentialAction": {
+                name: "ReadSpace",
+                alternateName: ["Read Space", "ReadSpace Library"],
+                url: "https://kamarprogrammer.site",
+                potentialAction: {
                   "@type": "SearchAction",
-                  "target": {
+                  target: {
                     "@type": "EntryPoint",
-                    "urlTemplate": "https://kamarprogrammer.site/discover?q={search_term_string}"
+                    urlTemplate:
+                      "https://kamarprogrammer.site/discover?q={search_term_string}",
                   },
-                  "query-input": "required name=search_term_string"
+                  "query-input": "required name=search_term_string",
                 },
-                "description": "ReadSpace is a modern reading platform combining book discovery (Gramedia), digital reading (OpenLibrary), and personal library management."
+                description:
+                  "ReadSpace is a modern reading platform combining book discovery (Gramedia), digital reading (OpenLibrary), and personal library management.",
               },
               {
                 "@context": "https://schema.org",
                 "@type": "Organization",
-                "name": "ReadSpace",
-                "url": "https://kamarprogrammer.site",
-                "logo": "https://kamarprogrammer.site/favicon.ico",
-                "sameAs": []
-              }
-            ])
+                name: "ReadSpace",
+                url: "https://kamarprogrammer.site",
+                logo: "https://kamarprogrammer.site/favicon.ico",
+                sameAs: [],
+              },
+            ]),
           }}
         />
       </head>
